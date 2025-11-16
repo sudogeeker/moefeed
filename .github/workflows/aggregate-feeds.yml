@@ -1,0 +1,48 @@
+name: 2. Aggregate Geofeed
+
+on:
+  workflow_dispatch: # 允许手动触发
+  
+  schedule:
+    - cron: '0 0 * * *' # 每天 00:00 UTC 运行
+
+  push:
+    branches:
+      - main # 或您的主分支名
+    paths:
+      - 'client_feeds/**.csv' # 只有客户 feed 变更时才触发
+
+jobs:
+  aggregate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Aggregate all feeds
+        run: |
+          OUTPUT_FILE="geofeed.csv"
+          SOURCE_DIR="client_feeds"
+          
+          echo "Aggregating feeds from $SOURCE_DIR into $OUTPUT_FILE..."
+          
+          # 检查源目录是否存在
+          if [ ! -d "$SOURCE_DIR" ]; then
+            echo "Source directory $SOURCE_DIR not found. Skipping."
+            exit 0
+          fi
+          
+          # 查找 $SOURCE_DIR 下所有 .csv 文件，
+          # 使用 cat 将它们的内容拼接起来，
+          # 然后重定向输出到 geofeed.csv
+          find "$SOURCE_DIR" -type f -name "*.csv" -exec cat {} + > "$OUTPUT_FILE"
+          
+          echo "Aggregation complete."
+
+      - name: Commit and push if changed
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "feat(geofeed): Automatically aggregate geofeed.csv"
+          file_pattern: geofeed.csv # 只提交 geofeed.csv 的变更
+          commit_user_name: "GitHub Actions Bot"
+          commit_user_email: "github-actions[bot]@users.noreply.github.com"
